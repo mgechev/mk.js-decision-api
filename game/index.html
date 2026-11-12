@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>mk.js</title>
+    <script src="src/mk.js"></script>
+    <script src="src/ai.js"></script>
+    <script src="src/pose-input.js"></script>
+    <link rel="stylesheet" href="styles/styles.css" />
+</head>
+<body>
+    <div id="menu" class="menu">
+        <h1>mk.js</h1>
+        <fieldset>
+            <legend>Mode</legend>
+            <label><input type="radio" name="mode" value="ai" checked> Play against AI (Google Decisions API)</label>
+            <label><input type="radio" name="mode" value="multiplayer"> Two players, one keyboard</label>
+            <label><input type="radio" name="mode" value="network"> Network game (requires <code>server/</code>)</label>
+        </fieldset>
+        <fieldset id="aiSettings">
+            <legend>AI opponent</legend>
+            <label>Gemini API key
+                <input id="apiKey" type="password" placeholder="Paste key from aistudio.google.com/apikey" autocomplete="off">
+            </label>
+            <small>Stored only in this browser's localStorage. Leave empty to fight the offline rule-based AI.</small>
+            <label>Difficulty
+                <select id="difficulty">
+                    <option value="easy">Easy</option>
+                    <option value="normal" selected>Normal</option>
+                    <option value="hard">Hard</option>
+                </select>
+            </label>
+            <label><input id="useCamera" type="checkbox"> Control my fighter with my camera (body moves)</label>
+        </fieldset>
+        <p class="rules">Matches are best of three: first to win 2 rounds.</p>
+        <button id="startBtn">Fight!</button>
+    </div>
+
+    <div id="calibration" class="calibration" hidden>
+        <h1>Camera calibration</h1>
+        <p class="calib-sub">Required before the fight. It learns your stance and how far you move, so your moves are recognised reliably.</p>
+        <div class="calib-body">
+            <div id="calibCam" class="calib-cam"></div>
+            <div class="calib-side">
+                <ol id="calibSteps" class="calib-steps"></ol>
+                <div id="calibInstruction" class="calib-instruction">Starting camera…</div>
+                <div class="calib-bar"><div id="calibProgress"></div></div>
+                <div id="calibHint" class="calib-hint"></div>
+                <button id="calibRestart" class="secondary" hidden>Restart calibration</button>
+            </div>
+        </div>
+    </div>
+
+    <table id="game" hidden>
+    <tbody>
+        <tr>
+            <td>
+                <div id="parent">
+                    <div id="utils">
+                        <div id="player1Name" class="playerName">Sub-Zero</div>
+                        <div id="player1LifeBar" class="lifebar"><div class="life" id="player1Life"></div></div>
+                        <div id="player2Name" class="playerName">Kano</div>
+                        <div id="player2LifeBar" class="lifebar"><div class="life" id="player2Life"></div></div>
+                        <div id="player1Wins" class="wins"></div>
+                        <div id="player2Wins" class="wins"></div>
+                        <div id="banner" class="banner"></div>
+                    </div>
+                    <div id="arena">
+                    </div>
+                    <div id="loading">
+                        <span class="loadingLabel">Loading...</span>
+                    </div>
+                </div>
+                <div id="aiHud" class="hud" hidden></div>
+            </td>
+            <td id="webcam-parent" hidden>
+                <div id="poseStatus" class="hud"></div>
+                <button id="recalibrate">Recalibrate</button>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2">
+                <h2>Controls</h2>
+                <ul class="instructions-list" id="keyboardHelp">
+                    <li>Arrows: move / jump / squat &middot; Shift: block</li>
+                    <li>A: high punch &middot; S: low punch &middot; D: low kick &middot; F: high kick</li>
+                    <li>Down + A: uppercut &middot; Back + F: spin kick &middot; Jump + A/S/D/F: jump attack</li>
+                    <li>Space: restart</li>
+                </ul>
+                <ul class="instructions-list" id="cameraHelp" hidden>
+                    <li>Stand where you calibrated. If detection drifts, return to your neutral stance and press Recalibrate.</li>
+                    <li>Step left / right of the dashed lines to walk. Jump to jump (jump while stepping to the side to jump forward/back).</li>
+                    <li>Punch out to the side: fist at head height = high punch, at chest = low punch.</li>
+                    <li>Fist straight up above your head = uppercut. Both fists in front of your face = block.</li>
+                    <li>Raise a knee = low kick, raise a leg to hip height = high kick. Squat to squat; squat + punch = low punch.</li>
+                    <li>The keyboard keeps working alongside the camera.</li>
+                </ul>
+            </td>
+        </tr>
+    </tbody>
+    </table>
+    <script>
+        (function () {
+
+            var ROUNDS_TO_WIN = 2;
+            var NAMES = { subzero: 'Sub-Zero', kano: 'Kano' };
+
+            function $(id) {
+                return document.getElementById(id);
+            }
+
+            function setLife(container, life) {
+                container.style.width = life + '%';
+            }
+
+            function selectedMode() {
+                return document.querySelector('input[name="mode"]:checked').value;
+            }
+
+            $('apiKey').value = mk.ai.getApiKey();
+            Array.prototype.forEach.call(document.querySelectorAll('input[name="mode"]'), function (r) {
+                r.addEventListener('change', function () {
+                    $('aiSettings').hidden = selectedMode() !== 'ai';
+                });
+            });
+
+            function loadScript(src) {
+                return new Promise(function (resolve, reject) {
+                    var s = document.createElement('script');
+                    s.src = src;
+                    s.onload = resolve;
+                    s.onerror = reject;
+                    document.head.appendChild(s);
+                });
+            }
+
+            var bannerTimer;
+            function banner(text, hideAfter) {
+                var b = $('banner');
+                clearTimeout(bannerTimer);
+                b.textContent = text;
+                b.style.visibility = text ? 'visible' : 'hidden';
+                if (hideAfter) {
+                    bannerTimer = setTimeout(function () { b.style.visibility = 'hidden'; }, hideAfter);
+                }
+            }
+
+            function renderWins(wins) {
+                [$('player1Wins'), $('player2Wins')].forEach(function (el, i) {
+                    var html = '';
+                    for (var k = 0; k < ROUNDS_TO_WIN; k += 1) {
+                        html += '<span class="win-dot' + (k < wins[i] ? ' won' : '') + '"></span>';
+                    }
+                    el.innerHTML = html;
+                });
+            }
+
+            $('startBtn').addEventListener('click', function () {
+                var mode = selectedMode();
+                var useCamera = mode === 'ai' && $('useCamera').checked;
+                var key = $('apiKey').value.trim();
+                mk.ai.setApiKey(key);
+                $('menu').hidden = true;
+
+                var settings = { mode: mode, key: key, difficulty: $('difficulty').value };
+                if (useCamera) {
+                    runCalibration().then(function () {
+                        startGame(settings, true);
+                    });
+                } else {
+                    startGame(settings, false);
+                }
+            });
+
+            /* ------------------------- Calibration ------------------------- */
+
+            function runCalibration() {
+                var steps = PoseInput.calibrationSteps;
+                $('calibration').hidden = false;
+                $('calibSteps').innerHTML = steps.map(function (s) {
+                    return '<li>' + s.title + '</li>';
+                }).join('');
+
+                function render(state) {
+                    Array.prototype.forEach.call($('calibSteps').children, function (li, i) {
+                        li.className = i < state.index ? 'done' : (i === state.index ? 'active' : '');
+                    });
+                    $('calibInstruction').textContent = state.phase === 'release' ?
+                        'Nice! Return to your neutral stance.' :
+                        (state.index + 1) + '/' + steps.length + ' · ' + state.step.text;
+                    $('calibProgress').style.width = Math.round(state.progress * 100) + '%';
+                    $('calibHint').textContent = state.hint;
+                }
+
+                return PoseInput.start({
+                    container: $('calibCam'),
+                    onStatus: function (s) { $('poseStatus').textContent = s; },
+                    onMove: function (move) {
+                        if (mk.game && typeof mk.game.controlPlayer === 'function') {
+                            mk.game.controlPlayer(move);
+                        }
+                    }
+                }).then(function () {
+                    $('calibRestart').hidden = false;
+                    return new Promise(function (resolve) {
+                        function run() {
+                            PoseInput.calibrate(render).then(resolve);
+                        }
+                        $('calibRestart').addEventListener('click', function () {
+                            run();
+                            this.blur();
+                        });
+                        run();
+                    });
+                }).then(function () {
+                    $('calibInstruction').textContent = 'Calibration complete. Get ready!';
+                    $('calibProgress').style.width = '100%';
+                    $('calibHint').textContent = '';
+                    return new Promise(function (r) { setTimeout(r, 1200); });
+                }).catch(function (err) {
+                    console.error(err);
+                    $('calibInstruction').textContent = 'Camera unavailable: ' + err.message;
+                    $('calibHint').textContent = 'Serve the game from http://localhost and allow camera access, then reload (or uncheck the camera option).';
+                    return new Promise(function () {}); // calibration is mandatory: never start
+                });
+            }
+
+            /* ---------------------------- Game ----------------------------- */
+
+            function startGame(settings, useCamera) {
+                var mode = settings.mode;
+                $('calibration').hidden = true;
+                $('game').hidden = false;
+
+                document.addEventListener('keydown', function (e) {
+                    if (e.keyCode === 32) {
+                        window.location.reload();
+                    }
+                });
+
+                var options = {
+                    arena: {
+                        container: $('arena'),
+                        arena: mk.arenas.types.THRONE_ROOM
+                    },
+                    fighters: [{ name: 'Subzero' }, { name: 'Kano' }],
+                    callbacks: {
+                        attack: function (f, o, l) {
+                            if (o.getName() === 'kano') {
+                                setLife($('player2Life'), o.getLife());
+                            } else {
+                                setLife($('player1Life'), o.getLife());
+                            }
+                        },
+                        'round-start': function (round, wins) {
+                            setLife($('player1Life'), 100);
+                            setLife($('player2Life'), 100);
+                            renderWins(wins);
+                            banner(round === 3 ? 'Final round' : 'Round ' + round);
+                        },
+                        fight: function () {
+                            banner('Fight!', 800);
+                        },
+                        'round-end': function (winner, round, wins, matchOver) {
+                            renderWins(wins);
+                            if (!matchOver) {
+                                banner(NAMES[winner.getName()] + ' wins round ' + round);
+                            }
+                        },
+                        'game-end': function (loser) {
+                            banner((loser.getName() === 'kano' ? 'Sub-Zero' : 'Kano') +
+                                ' wins the match! Press space to play again');
+                        }
+                    },
+                    gameType: mode
+                };
+
+                if (mode !== 'network') {
+                    options.roundsToWin = ROUNDS_TO_WIN;
+                    renderWins([0, 0]);
+                }
+
+                if (mode === 'ai') {
+                    $('player2Name').textContent = 'Kano (AI)';
+                    $('aiHud').hidden = false;
+                    $('aiHud').textContent = settings.key ?
+                        'AI brain: Google Decisions API (gemini-decision-1)' :
+                        'AI brain: offline rules (add an API key to use the Decisions API)';
+                    options.ai = {
+                        difficulty: settings.difficulty,
+                        apiKey: settings.key,
+                        onDecision: function (d) {
+                            $('aiHud').textContent = 'AI: ' + d.action.replace(/_/g, ' ') +
+                                ' (' + Math.round(100 * (d.probability || 0)) + '%, ' +
+                                d.source + (d.source === 'decisions-api' ? ', ' + d.latency + ' ms' : '') + ')';
+                        }
+                    };
+                }
+
+                if (mode === 'network') {
+                    options.isHost = /^yes$/i.test(prompt('Are you going to be host?'));
+                    options.gameName = prompt('Enter game name:');
+                }
+
+                if (useCamera) {
+                    $('webcam-parent').hidden = false;
+                    $('cameraHelp').hidden = false;
+                    PoseInput.moveTo($('webcam-parent'), 'small');
+                    $('recalibrate').addEventListener('click', function () {
+                        PoseInput.recalibrate();
+                        this.blur();
+                    });
+                }
+
+                var ready = mode === 'network' ? loadScript('/socket.io/socket.io.js') : Promise.resolve();
+                ready.then(function () {
+                    mk.start(options).ready(function () {
+                        $('loading').style.visibility = 'hidden';
+                        $('arena').style.visibility = 'visible';
+                        $('utils').style.visibility = 'visible';
+                    });
+                }).catch(function () {
+                    alert('Could not load socket.io. Start the server in server/ for network games.');
+                });
+            }
+
+        }());
+    </script>
+</body>
+</html>

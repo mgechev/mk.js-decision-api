@@ -1,0 +1,332 @@
+table {
+    margin: auto;
+}
+td {
+    padding: 10px;
+}
+th {
+    font-size: 19px;
+}
+.instructions-list {
+    margin-left: 150px;
+}
+h1 {
+    text-align: center;
+}
+canvas {
+    border: 3px solid white;
+    border-radius: 5px;
+}
+#movementjs-main-canvas {
+    -webkit-transform: scale(-1, 1);
+    -moz-transform: scale(-1, 1);
+    position: static !important;
+    width: 600px;
+    height: 400px;
+    background-color: #777;
+}
+body, html {
+    background-color: black;
+    color: #fff;
+    font-family: Verdana;
+    font-size: 12px;
+}
+#parent {
+    width: 600px;
+    height: 400px;
+    position: relative;
+    border-radius: 10px;
+}
+#arena {
+    width: 100%;
+    height: 100%;
+    background-color: black;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+}
+#loading {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0px;
+    left: 0px;
+}
+.lifebar {
+    width: 200px;
+    height: 15px;
+    background-color: red;
+    position: absolute;
+}
+#player1LifeBar {
+    left: 20px;
+    top: 30px;
+    border-bottom-right-radius: 15px;
+}
+#player1LifeBar .life
+{
+    border-bottom-right-radius: 15px;
+    float: left;
+}
+#player2LifeBar {
+    right: 20px;
+    top: 30px;
+    border-bottom-left-radius: 15px;
+}
+#player2LifeBar .life
+{
+    border-bottom-left-radius: 15px;
+    float: right;
+}
+.playerName {
+    color: white;
+    font-weight: bold;
+    font-style: italic;
+    font-family: Verdana;
+    font-size: 14px;
+    position: absolute;
+}
+#player1Name {
+    left: 30px;
+    top: 10px;
+}
+#player2Name {
+    right: 30px;
+    top: 10px;
+}
+.life {
+    width: 100%;
+    height: 100%;
+    background-color: #3CD400;
+}
+#utils {
+    visibility: hidden;
+    z-index: 100;
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    width: 100%;
+    height: 100%;
+}
+.manual {
+    width: 600px;
+    margin: auto;
+    color: #fff;
+    font-family: Verdana;
+    margin-top: 15px;
+    font-size: 14px;
+}
+.manual > div {
+    margin-left: 150px;
+}
+.manual a {
+    color: #fff;
+}
+.github {
+    position: fixed;
+    top: 0px;
+    right: 0px;
+    background-image: url(../images/github.png);
+    width: 149px;
+    height: 149px;
+    cursor: pointer;
+}
+.formContainer {
+    margin: auto;
+    text-align: center;
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
+.loadingLabel {
+    font-size: 25px;
+    font-weight: bold;
+    position: absolute;
+    left: 220px;
+    top: 150px;
+}
+[hidden] {
+    display: none !important;
+}
+.menu {
+    width: 520px;
+    margin: 40px auto;
+    font-size: 14px;
+}
+.menu fieldset {
+    border: 1px solid #555;
+    border-radius: 6px;
+    margin-bottom: 14px;
+    padding: 10px 14px;
+}
+.menu label {
+    display: block;
+    margin: 8px 0;
+}
+.menu input[type="password"], .menu select {
+    display: block;
+    width: 100%;
+    margin-top: 4px;
+    padding: 6px;
+    box-sizing: border-box;
+    background: #111;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 4px;
+}
+.menu small {
+    color: #aaa;
+}
+.menu button, #recalibrate {
+    background: #3CD400;
+    color: #000;
+    border: 0;
+    border-radius: 4px;
+    padding: 10px 24px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+}
+#recalibrate {
+    font-size: 12px;
+    padding: 6px 12px;
+    margin-top: 8px;
+}
+.hud {
+    margin-top: 8px;
+    min-height: 18px;
+    color: #ccc;
+    font-family: monospace;
+    font-size: 13px;
+}
+.banner {
+    visibility: hidden;
+    position: absolute;
+    top: 170px;
+    width: 100%;
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
+    text-shadow: 2px 2px 4px #000;
+}
+.pose-wrap {
+    position: relative;
+    width: 400px;
+    height: 300px;
+    margin-top: 8px;
+}
+.pose-video {
+    display: none;
+}
+.pose-label {
+    position: absolute;
+    left: 8px;
+    bottom: 8px;
+    padding: 2px 8px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 16px;
+}
+#webcam-parent {
+    vertical-align: top;
+}
+.rules {
+    color: #aaa;
+}
+button.secondary {
+    background: #333;
+    color: #fff;
+    font-size: 12px;
+    padding: 6px 12px;
+    margin-top: 12px;
+}
+.calibration {
+    max-width: 1040px;
+    margin: 24px auto;
+    padding: 0 16px;
+}
+.calib-sub {
+    text-align: center;
+    color: #aaa;
+    font-size: 14px;
+}
+.calib-body {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    justify-content: center;
+    margin-top: 16px;
+}
+.calib-cam .pose-wrap {
+    width: 640px;
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+}
+.calib-side {
+    width: 320px;
+    font-size: 14px;
+}
+.calib-steps {
+    padding-left: 22px;
+    line-height: 1.9;
+    color: #777;
+}
+.calib-steps li.active {
+    color: #fff;
+    font-weight: bold;
+}
+.calib-steps li.done {
+    color: #3CD400;
+}
+.calib-steps li.done::after {
+    content: ' \2713';
+}
+.calib-instruction {
+    font-size: 18px;
+    min-height: 3em;
+    margin: 12px 0;
+}
+.calib-bar {
+    height: 10px;
+    background: #333;
+    border-radius: 5px;
+    overflow: hidden;
+}
+.calib-bar > div {
+    height: 100%;
+    width: 0;
+    background: #3CD400;
+    transition: width 80ms linear;
+}
+.calib-hint {
+    color: #f5c542;
+    min-height: 1.5em;
+    margin-top: 10px;
+}
+.pose-canvas {
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+.wins {
+    position: absolute;
+    top: 50px;
+}
+#player1Wins {
+    left: 20px;
+}
+#player2Wins {
+    right: 20px;
+}
+.win-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+    border-radius: 50%;
+    border: 2px solid #f5c542;
+}
+.win-dot.won {
+    background: #f5c542;
+}
