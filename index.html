@@ -15,7 +15,6 @@
             <legend>Mode</legend>
             <label><input type="radio" name="mode" value="ai" checked> Play against AI (Google Decisions API)</label>
             <label><input type="radio" name="mode" value="multiplayer"> Two players, one keyboard</label>
-            <label><input type="radio" name="mode" value="network"> Network game (requires <code>server/</code>)</label>
         </fieldset>
         <fieldset id="aiSettings">
             <legend>AI opponent</legend>
@@ -123,16 +122,6 @@
                     $('aiSettings').hidden = selectedMode() !== 'ai';
                 });
             });
-
-            function loadScript(src) {
-                return new Promise(function (resolve, reject) {
-                    var s = document.createElement('script');
-                    s.src = src;
-                    s.onload = resolve;
-                    s.onerror = reject;
-                    document.head.appendChild(s);
-                });
-            }
 
             var bannerTimer;
             function banner(text, hideAfter) {
@@ -275,10 +264,8 @@
                     gameType: mode
                 };
 
-                if (mode !== 'network') {
-                    options.roundsToWin = ROUNDS_TO_WIN;
-                    renderWins([0, 0]);
-                }
+                options.roundsToWin = ROUNDS_TO_WIN;
+                renderWins([0, 0]);
 
                 if (mode === 'ai') {
                     $('player2Name').textContent = 'Kano (AI)';
@@ -297,11 +284,6 @@
                     };
                 }
 
-                if (mode === 'network') {
-                    options.isHost = /^yes$/i.test(prompt('Are you going to be host?'));
-                    options.gameName = prompt('Enter game name:');
-                }
-
                 if (useCamera) {
                     $('webcam-parent').hidden = false;
                     $('cameraHelp').hidden = false;
@@ -312,15 +294,10 @@
                     });
                 }
 
-                var ready = mode === 'network' ? loadScript('/socket.io/socket.io.js') : Promise.resolve();
-                ready.then(function () {
-                    mk.start(options).ready(function () {
-                        $('loading').style.visibility = 'hidden';
-                        $('arena').style.visibility = 'visible';
-                        $('utils').style.visibility = 'visible';
-                    });
-                }).catch(function () {
-                    alert('Could not load socket.io. Start the server in server/ for network games.');
+                mk.start(options).ready(function () {
+                    $('loading').style.visibility = 'hidden';
+                    $('arena').style.visibility = 'visible';
+                    $('utils').style.visibility = 'visible';
                 });
             }
 
